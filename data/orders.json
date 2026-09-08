@@ -1,0 +1,68 @@
+[
+  {
+    "id": "ord_1788715497388",
+    "userId": "usr_g_1788715395775431000",
+    "userName": "Valued Customer",
+    "userEmail": "junaidrashid678@gmail.com",
+    "totalAmount": 1200,
+    "status": "Shipped",
+    "paymentStatus": "Paid",
+    "shippingAddress": "123 Toy Street, 2nd Floor",
+    "items": [
+      {
+        "id": "",
+        "orderId": "",
+        "productId": "prod_1788677012003",
+        "productName": "White GT-R Style Die-Cast Toy Car",
+        "price": 1200,
+        "quantity": 1,
+        "imageUrl": "http://localhost:5050/uploads/1788677011991552000_ChatGPT_Image_Sep_6,_2026,_12_10_39_PM.png"
+      }
+    ],
+    "createdAt": "2026-09-06T22:54:57.388841+05:30"
+  },
+  {
+    "id": "ord_1001",
+    "userId": "usr_demo",
+    "userName": "Demo Customer",
+    "userEmail": "user@funfillers.com",
+    "totalAmount": 129.99,
+    "status": "Delivered",
+    "paymentStatus": "Paid",
+    "shippingAddress": "123 Commerce St, Tech City, CA 94016",
+    "items": [
+      {
+        "id": "",
+        "orderId": "",
+        "productId": "prod_1",
+        "productName": "FunFillers Premium Wireless Gaming Headset",
+        "price": 129.99,
+        "quantity": 1,
+        "imageUrl": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600"
+      }
+    ],
+    "createdAt": "2026-09-05T10:36:09.200314+05:30"
+  },
+  {
+    "id": "ord_1002",
+    "userId": "usr_demo",
+    "userName": "Demo Customer",
+    "userEmail": "user@funfillers.com",
+    "totalAmount": 89.95,
+    "status": "Pending",
+    "paymentStatus": "Paid",
+    "shippingAddress": "123 Commerce St, Tech City, CA 94016",
+    "items": [
+      {
+        "id": "",
+        "orderId": "",
+        "productId": "prod_2",
+        "productName": "Ergonomic RGB Mechanical Keyboard",
+        "price": 89.95,
+        "quantity": 1,
+        "imageUrl": "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600"
+      }
+    ],
+    "createdAt": "2026-09-03T10:36:09.200326+05:30"
+  }
+]

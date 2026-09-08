@@ -1,0 +1,22 @@
+# Binaries
+backend
+*.exe
+*.exe;
+*.dll
+*.so
+*.dylib
+
+# Test binary built by `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# OS / Editor junk
+.DS_Store
+*.swp
+*.tmp
+.env
