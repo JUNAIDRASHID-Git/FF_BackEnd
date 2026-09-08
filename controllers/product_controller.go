@@ -725,12 +725,12 @@ func (pc *ProductController) GetProductSharePreview(c *gin.Context) {
         <h1>%s</h1>
         <div class="price">%s</div>
         <div class="desc">%s</div>
-        <a href="funfillers://product/%s" class="btn">Open in FunFillers App</a>
+        <a href="https://funfillers.netlify.app/product/%s" class="btn">View Product Page</a>
     </div>
 
     <script>
-        // Attempt deep link to open in app if installed
-        window.location.href = "funfillers://product/%s";
+        // Redirect to Netlify user panel product page
+        window.location.href = "https://funfillers.netlify.app/product/%s";
     </script>
 </body>
 </html>`,
