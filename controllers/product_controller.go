@@ -738,7 +738,7 @@ func (pc *ProductController) GetProductSharePreview(c *gin.Context) {
 		fullURL, prod.Name, prod.Name, priceStr, prod.Description,
 		publicImageURL, publicImageURL, prod.Price,
 		fullURL, prod.Name, prod.Name, priceStr, publicImageURL,
-		prod.ImageURL, prod.Name, prod.Category, prod.Name, priceStr, prod.Description,
+		publicImageURL, prod.Name, prod.Category, prod.Name, priceStr, prod.Description,
 		prod.ID, prod.ID,
 	)
 
