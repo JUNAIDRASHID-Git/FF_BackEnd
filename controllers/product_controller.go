@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -649,14 +650,24 @@ func (pc *ProductController) GetProductSharePreview(c *gin.Context) {
 
 	host := c.Request.Host
 	if host == "" {
-		host = "localhost:5050"
+		host = "ff-backend-klec.onrender.com"
 	}
-	fullURL := fmt.Sprintf("http://%s/share/product/%s", host, prod.ID)
+	scheme := "https"
+	if strings.HasPrefix(host, "localhost") || strings.HasPrefix(host, "127.0.0.1") {
+		scheme = "http"
+	}
+
+	fullURL := fmt.Sprintf("%s://%s/share/product/%s", scheme, host, prod.ID)
 	priceStr := fmt.Sprintf("$%.2f", prod.Price)
 
-	// WhatsApp crawler requires publicly accessible HTTPS images
 	publicImageURL := prod.ImageURL
-	if strings.Contains(publicImageURL, "localhost") || strings.Contains(publicImageURL, "127.0.0.1") || !strings.HasPrefix(publicImageURL, "http") {
+	if strings.Contains(publicImageURL, "localhost") || strings.Contains(publicImageURL, "127.0.0.1") {
+		publicImageURL = regexp.MustCompile(`http://(localhost|127\.0\.0\.1):(5050|8080|5000)`).ReplaceAllString(publicImageURL, fmt.Sprintf("%s://%s", scheme, host))
+	} else if strings.HasPrefix(publicImageURL, "/uploads") {
+		publicImageURL = fmt.Sprintf("%s://%s%s", scheme, host, publicImageURL)
+	}
+
+	if publicImageURL == "" {
 		publicImageURL = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600"
 	}
 
