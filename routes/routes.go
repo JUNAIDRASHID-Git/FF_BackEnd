@@ -101,6 +101,7 @@ func SetupRouter(cfg config.Config) *gin.Engine {
 			// UI Banners Management
 			admin.GET("/banners", uiCtrl.GetBanners)
 			admin.POST("/banners", uiCtrl.CreateBanner)
+			admin.POST("/banners/upload", uiCtrl.UploadBannerImage)
 			admin.PUT("/banners/:id", uiCtrl.UpdateBanner)
 			admin.PUT("/banners/:id/toggle", uiCtrl.ToggleBannerStatus)
 			admin.DELETE("/banners/:id", uiCtrl.DeleteBanner)

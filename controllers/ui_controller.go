@@ -3,6 +3,8 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -165,3 +167,50 @@ func (uic *UIController) DeleteBanner(c *gin.Context) {
 	mockBanners = updated
 	c.JSON(http.StatusOK, gin.H{"message": "Banner deleted successfully"})
 }
+
+// UploadBannerImage accepts a multipart image file, saves it in ./uploads/banners/, and returns its public URL.
+// POST /api/admin/ui/banners/upload
+func (uic *UIController) UploadBannerImage(c *gin.Context) {
+	file, err := c.FormFile("image")
+	if err != nil {
+		file, err = c.FormFile("file")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No image file provided (field name: 'image' or 'file')"})
+			return
+		}
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".gif": true, ".svg": true}
+	if !allowedExts[ext] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only image files are allowed (.jpg, .jpeg, .png, .webp, .gif, .svg)"})
+		return
+	}
+
+	uploadDir := "./uploads/banners"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create upload directory"})
+		return
+	}
+
+	filename := fmt.Sprintf("banner_%d%s", time.Now().UnixNano(), ext)
+	dst := filepath.Join(uploadDir, filename)
+
+	if err := c.SaveUploadedFile(file, dst); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image file"})
+		return
+	}
+
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	host := c.Request.Host
+	imageURL := fmt.Sprintf("%s://%s/uploads/banners/%s", scheme, host, filename)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":  "Banner image uploaded successfully",
+		"imageUrl": imageURL,
+	})
+}
+
