@@ -178,6 +178,33 @@ func (ac *AdminController) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
+	if config.DB != nil {
+		var user models.User
+		if err := config.DB.Where("id = ?", id).First(&user).Error; err == nil {
+			if isSuperAdminEmail(user.Email) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Super Admin status cannot be altered"})
+				return
+			}
+			user.Status = req.Status
+			config.DB.Save(&user)
+
+			// Also sync in mockUsers
+			for i, u := range mockUsers {
+				if u.ID == id {
+					mockUsers[i].Status = req.Status
+					break
+				}
+			}
+			saveUsersToFile()
+
+			c.JSON(http.StatusOK, gin.H{
+				"message": "User status updated",
+				"user":    user,
+			})
+			return
+		}
+	}
+
 	for i, u := range mockUsers {
 		if u.ID == id {
 			if isSuperAdminEmail(u.Email) {
@@ -206,6 +233,33 @@ func (ac *AdminController) UpdateUserRole(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	if config.DB != nil {
+		var user models.User
+		if err := config.DB.Where("id = ?", id).First(&user).Error; err == nil {
+			if isSuperAdminEmail(user.Email) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Super Admin role cannot be altered"})
+				return
+			}
+			user.Role = req.Role
+			config.DB.Save(&user)
+
+			// Also sync in mockUsers
+			for i, u := range mockUsers {
+				if u.ID == id {
+					mockUsers[i].Role = req.Role
+					break
+				}
+			}
+			saveUsersToFile()
+
+			c.JSON(http.StatusOK, gin.H{
+				"message": "User role updated",
+				"user":    user,
+			})
+			return
+		}
 	}
 
 	for i, u := range mockUsers {
@@ -241,13 +295,82 @@ func (ac *AdminController) RequestAdminAccess(c *gin.Context) {
 	emailLower := strings.ToLower(strings.TrimSpace(req.Email))
 	isSuper := isSuperAdminEmail(emailLower)
 
-	for _, u := range mockUsers {
-		if strings.ToLower(u.Email) == emailLower {
+	name := req.Name
+	if name == "" {
+		name = strings.Split(req.Email, "@")[0]
+	}
+
+	if config.DB != nil {
+		var dbUser models.User
+		err := config.DB.Where("LOWER(email) = ?", emailLower).First(&dbUser).Error
+		if err == nil {
+			// User already exists in database
+			if isSuper {
+				dbUser.Role = "super_admin"
+				dbUser.Status = "Active"
+				config.DB.Save(&dbUser)
+			} else if dbUser.Role == "customer" {
+				// If a customer attempts to access the admin panel, mark them as requesting admin access
+				dbUser.Status = "Pending"
+				dbUser.Role = "admin"
+				if name != "" && dbUser.Name == "" {
+					dbUser.Name = name
+				}
+				config.DB.Save(&dbUser)
+			}
 			c.JSON(http.StatusOK, gin.H{
-				"status":       u.Status,
-				"role":         u.Role,
-				"isSuperAdmin": isSuper || u.Role == "super_admin",
-				"user":         u,
+				"status":       dbUser.Status,
+				"role":         dbUser.Role,
+				"isSuperAdmin": isSuper || dbUser.Role == "super_admin",
+				"user":         dbUser,
+			})
+			return
+		}
+
+		// Create new user in DB
+		newStatus := "Pending"
+		role := "admin"
+		if isSuper {
+			newStatus = "Active"
+			role = "super_admin"
+		}
+
+		newUser := models.User{
+			ID:        fmt.Sprintf("usr_%d", time.Now().UnixNano()/1e6),
+			Name:      name,
+			Email:     emailLower,
+			Role:      role,
+			Status:    newStatus,
+			CreatedAt: time.Now(),
+		}
+
+		config.DB.Create(&newUser)
+		c.JSON(http.StatusCreated, gin.H{
+			"status":       newUser.Status,
+			"role":         newUser.Role,
+			"isSuperAdmin": isSuper,
+			"user":         newUser,
+		})
+		return
+	}
+
+	// Fallback to in-memory/mockUsers when DB is not available
+	for i, u := range mockUsers {
+		if strings.ToLower(u.Email) == emailLower {
+			if isSuper {
+				mockUsers[i].Role = "super_admin"
+				mockUsers[i].Status = "Active"
+				saveUsersToFile()
+			} else if mockUsers[i].Role == "customer" {
+				mockUsers[i].Status = "Pending"
+				mockUsers[i].Role = "admin"
+				saveUsersToFile()
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"status":       mockUsers[i].Status,
+				"role":         mockUsers[i].Role,
+				"isSuperAdmin": isSuper || mockUsers[i].Role == "super_admin",
+				"user":         mockUsers[i],
 			})
 			return
 		}
@@ -258,11 +381,6 @@ func (ac *AdminController) RequestAdminAccess(c *gin.Context) {
 	if isSuper {
 		newStatus = "Active"
 		role = "super_admin"
-	}
-
-	name := req.Name
-	if name == "" {
-		name = strings.Split(req.Email, "@")[0]
 	}
 
 	newUser := models.User{
@@ -288,7 +406,7 @@ func (ac *AdminController) RequestAdminAccess(c *gin.Context) {
 func (ac *AdminController) GetAllOrders(c *gin.Context) {
 	if config.DB != nil {
 		var orders []models.Order
-		if err := config.DB.Preload("Items").Order("created_at desc").Find(&orders).Error; err == nil && len(orders) > 0 {
+		if err := config.DB.Preload("Items").Order("created_at desc").Find(&orders).Error; err == nil {
 			c.JSON(http.StatusOK, orders)
 			return
 		}

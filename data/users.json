@@ -4,6 +4,7 @@
     "name": "Junaid Rashid",
     "email": "junaidrashid1163@gmail.com",
     "role": "admin",
+    "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocLGg6foCc0fk1CP44iPnHoGwW8uIhh1chj2VIyVBCMbFMlaew=s96-c",
     "status": "Suspended",
     "createdAt": "2026-09-06T13:15:23.357734+05:30"
   },
@@ -14,5 +15,13 @@
     "role": "super_admin",
     "status": "Active",
     "createdAt": "2026-09-06T12:00:00Z"
+  },
+  {
+    "id": "usr_g_1788926521201660000",
+    "name": "Fathima.A",
+    "email": "fathimaansal81@gmail.com",
+    "role": "customer",
+    "status": "Active",
+    "createdAt": "2026-09-09T09:32:01.201663+05:30"
   }
 ]

@@ -14,7 +14,7 @@ func SetupRouter(cfg config.Config) *gin.Engine {
 	// Enable CORS
 	r.Use(middleware.CORSMiddleware())
 
-	// Static route to serve uploaded images
+	// Static routes to serve uploaded files
 	r.Static("/uploads", "./uploads")
 
 	productCtrl := controllers.NewProductController()
@@ -24,6 +24,7 @@ func SetupRouter(cfg config.Config) *gin.Engine {
 	adminCtrl := controllers.NewAdminController()
 	uiCtrl := controllers.NewUIController()
 	wishlistCtrl := controllers.NewWishlistController()
+	addressCtrl := controllers.NewAddressController()
 
 	// Root share preview for social media bots (WhatsApp, FB, Twitter)
 	r.GET("/share/product/:id", productCtrl.GetProductSharePreview)
@@ -59,11 +60,18 @@ func SetupRouter(cfg config.Config) *gin.Engine {
 		api.GET("/products/:id", productCtrl.GetProductByID)
 		api.GET("/categories", categoryCtrl.GetCategories)
 		api.GET("/ui/banners", uiCtrl.GetBanners)
+		api.GET("/ui/hero-video", controllers.GetHeroVideo) // Customer app fetches active hero video
 
 		// Wishlist routes
 		api.GET("/wishlist", wishlistCtrl.GetWishlist)
 		api.POST("/wishlist/toggle", wishlistCtrl.ToggleWishlist)
 		api.DELETE("/wishlist/:productId", wishlistCtrl.RemoveWishlistItem)
+
+		// User Address routes
+		api.GET("/user/addresses", addressCtrl.GetAddresses)
+		api.POST("/user/addresses", addressCtrl.SaveAddress)
+		api.PUT("/user/addresses/:id/default", addressCtrl.SetDefaultAddress)
+		api.DELETE("/user/addresses/:id", addressCtrl.DeleteAddress)
 
 		// Admin & Public Store API Endpoints (Admin panel direct access)
 		admin := api.Group("/admin")
@@ -93,8 +101,14 @@ func SetupRouter(cfg config.Config) *gin.Engine {
 			// UI Banners Management
 			admin.GET("/banners", uiCtrl.GetBanners)
 			admin.POST("/banners", uiCtrl.CreateBanner)
+			admin.PUT("/banners/:id", uiCtrl.UpdateBanner)
 			admin.PUT("/banners/:id/toggle", uiCtrl.ToggleBannerStatus)
 			admin.DELETE("/banners/:id", uiCtrl.DeleteBanner)
+
+			// Hero Video Management
+			admin.GET("/hero-video", controllers.GetHeroVideo)
+			admin.POST("/hero-video/upload", controllers.UploadHeroVideo)
+			admin.PUT("/hero-video/toggle", controllers.ToggleHeroVideo)
 
 			// Compliance & Safety Management
 			admin.POST("/batches/recall", productCtrl.RecallBatch)

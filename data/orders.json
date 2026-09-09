@@ -1,5 +1,58 @@
 [
   {
+    "id": "ord_1788927356345",
+    "userId": "usr_g_1788927242763066000",
+    "userName": "Junaid Rashid",
+    "userEmail": "junaidrashid1163@gmail.com",
+    "totalAmount": 2500,
+    "status": "Shipped",
+    "paymentStatus": "Paid",
+    "shippingAddress": "123 Toy Street, 2nd Floor",
+    "items": [
+      {
+        "id": "item_1788927357237_0",
+        "orderId": "ord_1788927356345",
+        "productId": "prod_1788924013487",
+        "productName": "Thar Mahindra",
+        "price": 1300,
+        "quantity": 1,
+        "imageUrl": "http://ff-backend-klec.onrender.com/uploads/1788924012663731874_d251ed44-b942-42e9-a9e3-9aa7ccb3a71f.jpeg"
+      },
+      {
+        "id": "item_1788927357237_1",
+        "orderId": "ord_1788927356345",
+        "productId": "prod_1788677012003",
+        "productName": "White GT-R Style Die-Cast Toy Car",
+        "price": 1200,
+        "quantity": 1,
+        "imageUrl": "http://localhost:5050/uploads/1788677011991552000_ChatGPT_Image_Sep_6,_2026,_12_10_39_PM.png"
+      }
+    ],
+    "createdAt": "2026-09-09T09:45:57.237617+05:30"
+  },
+  {
+    "id": "ord_1788926636761",
+    "userId": "usr_g_1788926629474510000",
+    "userName": "Fathima.A",
+    "userEmail": "fathimaansal81@gmail.com",
+    "totalAmount": 1300,
+    "status": "Shipped",
+    "paymentStatus": "Paid",
+    "shippingAddress": "House #12, Marine Drive, Kochi, Kerala - 682031",
+    "items": [
+      {
+        "id": "item_1788926638007_0",
+        "orderId": "ord_1788926636761",
+        "productId": "prod_1788924013487",
+        "productName": "Thar Mahindra",
+        "price": 1300,
+        "quantity": 1,
+        "imageUrl": "http://ff-backend-klec.onrender.com/uploads/1788924012663731874_d251ed44-b942-42e9-a9e3-9aa7ccb3a71f.jpeg"
+      }
+    ],
+    "createdAt": "2026-09-09T09:33:58.007795+05:30"
+  },
+  {
     "id": "ord_1788715497388",
     "userId": "usr_g_1788715395775431000",
     "userName": "Valued Customer",

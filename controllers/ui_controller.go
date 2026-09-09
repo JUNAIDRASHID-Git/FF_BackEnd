@@ -113,12 +113,49 @@ func (uic *UIController) ToggleBannerStatus(c *gin.Context) {
 	c.JSON(http.StatusNotFound, gin.H{"error": "Banner not found"})
 }
 
+func (uic *UIController) UpdateBanner(c *gin.Context) {
+	id := c.Param("id")
+	var req models.CreateUIBannerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update in DB
+	if config.DB != nil {
+		config.DB.Model(&models.UIBanner{}).Where("id = ?", id).Updates(map[string]interface{}{
+			"title":      req.Title,
+			"subtitle":   req.Subtitle,
+			"image_url":  req.ImageURL,
+			"action_url": req.ActionURL,
+			"tag":        req.Tag,
+			"is_active":  req.IsActive,
+			"sort_order": req.SortOrder,
+		})
+	}
+
+	// Update in-memory
+	for i, b := range mockBanners {
+		if b.ID == id {
+			mockBanners[i].Title = req.Title
+			mockBanners[i].Subtitle = req.Subtitle
+			mockBanners[i].ImageURL = req.ImageURL
+			mockBanners[i].ActionURL = req.ActionURL
+			mockBanners[i].Tag = req.Tag
+			mockBanners[i].IsActive = req.IsActive
+			mockBanners[i].SortOrder = req.SortOrder
+			c.JSON(http.StatusOK, gin.H{"message": "Banner updated", "banner": mockBanners[i]})
+			return
+		}
+	}
+	c.JSON(http.StatusNotFound, gin.H{"error": "Banner not found"})
+}
+
 func (uic *UIController) DeleteBanner(c *gin.Context) {
 	id := c.Param("id")
 	if config.DB != nil {
 		config.DB.Where("id = ?", id).Delete(&models.UIBanner{})
 	}
-
 	updated := make([]models.UIBanner, 0)
 	for _, b := range mockBanners {
 		if b.ID != id {
@@ -126,6 +163,5 @@ func (uic *UIController) DeleteBanner(c *gin.Context) {
 		}
 	}
 	mockBanners = updated
-
 	c.JSON(http.StatusOK, gin.H{"message": "Banner deleted successfully"})
 }

@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"funfillers/backend/config"
@@ -53,30 +54,57 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 	userId, _ := c.Get("userId")
 	userEmail, _ := c.Get("userEmail")
 
+	userIdStr := fmt.Sprintf("%v", userId)
+	userEmailStr := fmt.Sprintf("%v", userEmail)
+	orderId := fmt.Sprintf("ord_%d", time.Now().UnixNano()/1e6)
+
+	// Fetch customer real name from database if available
+	userNameStr := "Valued Customer"
+	if config.DB != nil && (userIdStr != "" || userEmailStr != "") {
+		var u models.User
+		if err := config.DB.Where("id = ? OR LOWER(email) = ?", userIdStr, strings.ToLower(userEmailStr)).First(&u).Error; err == nil && u.Name != "" {
+			userNameStr = u.Name
+		}
+	}
+
 	var total float64
+	items := make([]models.OrderItem, len(req.Items))
 	for i := range req.Items {
 		total += req.Items[i].Price * float64(req.Items[i].Quantity)
-		if req.Items[i].ProductName == "" || req.Items[i].ImageURL == "" {
-			for _, p := range mockProducts {
-				if p.ID == req.Items[i].ProductID {
-					if req.Items[i].ProductName == "" {
-						req.Items[i].ProductName = p.Name
-					}
-					if req.Items[i].ImageURL == "" {
-						req.Items[i].ImageURL = p.ImageURL
-					}
-					break
+
+		prodName := req.Items[i].ProductName
+		imgUrl := req.Items[i].ImageURL
+
+		// Resolve missing product name / image from database if not passed
+		if (prodName == "" || imgUrl == "") && config.DB != nil && req.Items[i].ProductID != "" {
+			var p models.Product
+			if err := config.DB.Where("id = ?", req.Items[i].ProductID).First(&p).Error; err == nil {
+				if prodName == "" {
+					prodName = p.Name
+				}
+				if imgUrl == "" {
+					imgUrl = p.ImageURL
 				}
 			}
+		}
+
+		items[i] = models.OrderItem{
+			ID:          fmt.Sprintf("item_%d_%d", time.Now().UnixNano()/1e6, i),
+			OrderID:     orderId,
+			ProductID:   req.Items[i].ProductID,
+			ProductName: prodName,
+			Price:       req.Items[i].Price,
+			Quantity:    req.Items[i].Quantity,
+			ImageURL:    imgUrl,
 		}
 	}
 
 	order := models.Order{
-		ID:              fmt.Sprintf("ord_%d", time.Now().UnixNano()/1e6),
-		UserID:          fmt.Sprintf("%v", userId),
-		UserName:        "Valued Customer",
-		UserEmail:       fmt.Sprintf("%v", userEmail),
-		Items:           req.Items,
+		ID:              orderId,
+		UserID:          userIdStr,
+		UserName:        userNameStr,
+		UserEmail:       userEmailStr,
+		Items:           items,
 		TotalAmount:     total,
 		ShippingAddress: req.ShippingAddress,
 		Status:          "Pending",
@@ -85,7 +113,10 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 	}
 
 	if config.DB != nil {
-		config.DB.Create(&order)
+		if err := config.DB.Create(&order).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to persist order: " + err.Error()})
+			return
+		}
 	}
 	mockOrders = append([]models.Order{order}, mockOrders...)
 	saveOrdersToFile()
@@ -98,10 +129,23 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 
 func (oc *OrderController) GetUserOrders(c *gin.Context) {
 	userId, _ := c.Get("userId")
+	userEmail, _ := c.Get("userEmail")
+
+	userIdStr := fmt.Sprintf("%v", userId)
+	userEmailStr := fmt.Sprintf("%v", userEmail)
 
 	if config.DB != nil {
 		var userOrders []models.Order
-		if err := config.DB.Preload("Items").Where("user_id = ?", fmt.Sprintf("%v", userId)).Find(&userOrders).Error; err == nil {
+		query := config.DB.Preload("Items").Order("created_at desc")
+		if userEmailStr != "" && userEmailStr != "<nil>" && userIdStr != "" && userIdStr != "<nil>" {
+			query = query.Where("user_id = ? OR LOWER(user_email) = ?", userIdStr, strings.ToLower(userEmailStr))
+		} else if userIdStr != "" && userIdStr != "<nil>" {
+			query = query.Where("user_id = ?", userIdStr)
+		} else if userEmailStr != "" && userEmailStr != "<nil>" {
+			query = query.Where("LOWER(user_email) = ?", strings.ToLower(userEmailStr))
+		}
+
+		if err := query.Find(&userOrders).Error; err == nil {
 			c.JSON(http.StatusOK, userOrders)
 			return
 		}
@@ -109,7 +153,7 @@ func (oc *OrderController) GetUserOrders(c *gin.Context) {
 
 	var userOrders []models.Order
 	for _, o := range mockOrders {
-		if o.UserID == fmt.Sprintf("%v", userId) {
+		if o.UserID == userIdStr || (userEmailStr != "" && strings.EqualFold(o.UserEmail, userEmailStr)) {
 			userOrders = append(userOrders, o)
 		}
 	}
