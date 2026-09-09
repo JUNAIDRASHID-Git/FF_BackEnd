@@ -61,6 +61,8 @@ func SetupRouter(cfg config.Config) *gin.Engine {
 		api.GET("/categories", categoryCtrl.GetCategories)
 		api.GET("/ui/banners", uiCtrl.GetBanners)
 		api.GET("/ui/hero-video", controllers.GetHeroVideo) // Customer app fetches active hero video
+		api.GET("/ui/homepage-sections", controllers.GetHomepageSections) // Customer app fetches homepage sections
+		api.GET("/ui/custom-sections", uiCtrl.GetCustomSections) // Customer app fetches customizable sections
 
 		// Wishlist routes
 		api.GET("/wishlist", wishlistCtrl.GetWishlist)
@@ -110,6 +112,16 @@ func SetupRouter(cfg config.Config) *gin.Engine {
 			admin.GET("/hero-video", controllers.GetHeroVideo)
 			admin.POST("/hero-video/upload", controllers.UploadHeroVideo)
 			admin.PUT("/hero-video/toggle", controllers.ToggleHeroVideo)
+
+			// Homepage Sections Management
+			admin.GET("/homepage-sections", controllers.GetHomepageSections)
+			admin.PUT("/homepage-sections", controllers.UpdateHomepageSections)
+
+			// Custom Showcase Sections Management
+			admin.GET("/custom-sections", uiCtrl.GetCustomSections)
+			admin.POST("/custom-sections", uiCtrl.CreateCustomSection)
+			admin.PUT("/custom-sections/:id", uiCtrl.UpdateCustomSection)
+			admin.DELETE("/custom-sections/:id", uiCtrl.DeleteCustomSection)
 
 			// Compliance & Safety Management
 			admin.POST("/batches/recall", productCtrl.RecallBatch)

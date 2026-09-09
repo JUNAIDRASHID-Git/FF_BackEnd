@@ -82,6 +82,7 @@ func InitDB() *gorm.DB {
 		&models.WishlistItem{},
 		&models.Address{},
 		&models.HeroVideoConfig{},
+		&models.CustomSection{},
 	); err != nil {
 		log.Printf("⚠️ AutoMigrate error: %v\n", err)
 	}
