@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"funfillers/backend/models"
@@ -17,12 +18,27 @@ var DB *gorm.DB
 
 func InitDB() *gorm.DB {
 	databaseURL := os.Getenv("DATABASE_URL")
-	var dsn string
+	allowRemote := os.Getenv("ALLOW_REMOTE_DB") == "true"
 
+	// Prevent local backend from connecting to Render or cloud production database
+	if !allowRemote {
+		if strings.Contains(strings.ToLower(databaseURL), "render.com") ||
+			strings.Contains(strings.ToLower(databaseURL), "onrender.com") ||
+			strings.Contains(strings.ToLower(databaseURL), "neon.tech") ||
+			strings.Contains(strings.ToLower(databaseURL), "supabase") {
+			log.Println("🔒 Local Development Protection: Disconnected from Render/Cloud production database.")
+			databaseURL = ""
+		}
+	}
+
+	var dsn string
 	if databaseURL != "" {
 		dsn = databaseURL
 	} else {
 		host := os.Getenv("DB_HOST")
+		if !allowRemote && (strings.Contains(strings.ToLower(host), "render") || strings.Contains(strings.ToLower(host), "neon")) {
+			host = "localhost"
+		}
 		if host == "" {
 			host = "localhost"
 		}
@@ -88,5 +104,14 @@ func InitDB() *gorm.DB {
 	}
 
 	DB = db
+	PurgeExternalDevData(db)
 	return db
+}
+
+func PurgeExternalDevData(db *gorm.DB) {
+	if db == nil {
+		return
+	}
+	db.Exec("DELETE FROM users WHERE LOWER(email) LIKE '%fathima%' OR LOWER(email) LIKE '%ihjas%'")
+	db.Exec("DELETE FROM orders WHERE LOWER(user_email) LIKE '%fathima%' OR LOWER(user_email) LIKE '%ihjas%'")
 }

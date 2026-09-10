@@ -1,8 +1,11 @@
 package controllers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,24 +21,126 @@ func NewAddressController() *AddressController {
 	return &AddressController{}
 }
 
-// In-memory fallback storage for addresses when DB is disabled
+// In-memory & file-backed storage for addresses when DB is disabled
 var (
 	mockAddressesMutex sync.RWMutex
 	mockAddresses      = make(map[string][]models.Address) // userId -> []Address
 )
 
+const addressesFilePath = "data/addresses.json"
+
+func init() {
+	loadAddressesFromFile()
+}
+
+func loadAddressesFromFile() {
+	mockAddressesMutex.Lock()
+	defer mockAddressesMutex.Unlock()
+
+	file, err := os.Open(addressesFilePath)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	var data map[string][]models.Address
+	if err := json.NewDecoder(file).Decode(&data); err == nil && data != nil {
+		mockAddresses = data
+	}
+}
+
+func saveAddressesToFileUnlocked() {
+	os.MkdirAll("data", 0755)
+	file, err := os.Create(addressesFilePath)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	encoder.Encode(mockAddresses)
+}
+
+func saveAddressesToFile() {
+	mockAddressesMutex.RLock()
+	defer mockAddressesMutex.RUnlock()
+	saveAddressesToFileUnlocked()
+}
+
+func MigrateUserAddresses(oldUserID, newUserID string) {
+	if oldUserID == "" || newUserID == "" || oldUserID == newUserID {
+		return
+	}
+	mockAddressesMutex.Lock()
+	defer mockAddressesMutex.Unlock()
+
+	oldList, exists := mockAddresses[oldUserID]
+	if !exists || len(oldList) == 0 {
+		return
+	}
+
+	newList := mockAddresses[newUserID]
+	for _, addr := range oldList {
+		addr.UserID = newUserID
+		already := false
+		for _, existing := range newList {
+			if existing.ID == addr.ID {
+				already = true
+				break
+			}
+		}
+		if !already {
+			newList = append(newList, addr)
+		}
+	}
+	mockAddresses[newUserID] = newList
+	delete(mockAddresses, oldUserID)
+	saveAddressesToFileUnlocked()
+}
+
 // Helper to extract userId from Auth token or headers or query
 func getAddressUserId(c *gin.Context) string {
-	if uid, exists := c.Get("userId"); exists && uid != "" {
-		return fmt.Sprintf("%v", uid)
+	var requestedUid string
+	if uid, exists := c.Get("userId"); exists && fmt.Sprintf("%v", uid) != "" && fmt.Sprintf("%v", uid) != "<nil>" {
+		requestedUid = fmt.Sprintf("%v", uid)
+	} else if uid := c.Query("userId"); uid != "" {
+		requestedUid = uid
+	} else if uid := c.Query("user_id"); uid != "" {
+		requestedUid = uid
+	} else if uid := c.GetHeader("X-User-ID"); uid != "" {
+		requestedUid = uid
 	}
-	if uid := c.Query("userId"); uid != "" {
-		return uid
+
+	userEmail := c.GetHeader("X-User-Email")
+	if userEmail == "" {
+		userEmail = c.Query("email")
 	}
-	if uid := c.GetHeader("X-User-ID"); uid != "" {
-		return uid
+
+	if userEmail != "" && !strings.Contains(userEmail, "guest@") {
+		user, found := FindUserByEmailOrID(userEmail)
+		if found {
+			if requestedUid != "" && requestedUid != user.ID {
+				MigrateUserAddresses(requestedUid, user.ID)
+				MigrateUserAddresses(user.ID, requestedUid)
+			}
+			return user.ID
+		}
+		if requestedUid != "" {
+			return requestedUid
+		}
+		return fmt.Sprintf("usr_g_%s", strings.ReplaceAll(strings.ReplaceAll(userEmail, "@", "_at_"), ".", "_"))
 	}
-	return "guest_user"
+
+	if requestedUid != "" {
+		return requestedUid
+	}
+
+	ip := c.ClientIP()
+	if ip != "" && ip != "127.0.0.1" && ip != "::1" {
+		return fmt.Sprintf("guest_ip_%s", ip)
+	}
+	return "guest_user_default"
 }
 
 // GET /api/user/addresses
@@ -125,6 +230,7 @@ func (ac *AddressController) SaveAddress(c *gin.Context) {
 
 	mockAddresses[userId] = existingList
 	mockAddressesMutex.Unlock()
+	saveAddressesToFile()
 
 	c.JSON(http.StatusOK, address)
 }
@@ -158,6 +264,7 @@ func (ac *AddressController) SetDefaultAddress(c *gin.Context) {
 	}
 	mockAddresses[userId] = existingList
 	mockAddressesMutex.Unlock()
+	saveAddressesToFile()
 
 	c.JSON(http.StatusOK, target)
 }
@@ -184,6 +291,7 @@ func (ac *AddressController) DeleteAddress(c *gin.Context) {
 	}
 	mockAddresses[userId] = updated
 	mockAddressesMutex.Unlock()
+	saveAddressesToFile()
 
 	c.JSON(http.StatusOK, gin.H{"status": "deleted", "id": addressID})
 }

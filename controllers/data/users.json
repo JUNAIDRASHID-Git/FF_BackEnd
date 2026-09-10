@@ -1,0 +1,10 @@
+[
+  {
+    "id": "usr_super1",
+    "name": "Junaid Rashid",
+    "email": "junaidrashid678@gmail.com",
+    "role": "super_admin",
+    "status": "Active",
+    "createdAt": "0001-01-01T00:00:00Z"
+  }
+]

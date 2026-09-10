@@ -376,15 +376,11 @@ func (pc *ProductController) UpdateProduct(c *gin.Context) {
 		if req.Category != "" {
 			p.Category = req.Category
 		}
-		if req.SubCategory != "" {
-			p.SubCategory = req.SubCategory
-		}
+		p.SubCategory = req.SubCategory
 		if req.CategoryID != "" {
 			p.CategoryID = req.CategoryID
 		}
-		if req.SubCategoryID != "" {
-			p.SubCategoryID = req.SubCategoryID
-		}
+		p.SubCategoryID = req.SubCategoryID
 		if req.ImageURL != "" {
 			p.ImageURL = req.ImageURL
 		}

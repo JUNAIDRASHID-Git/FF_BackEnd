@@ -20,17 +20,26 @@ func SetupRouter(cfg config.Config) *gin.Engine {
 	productCtrl := controllers.NewProductController()
 	authCtrl := controllers.NewAuthController(cfg)
 	categoryCtrl := controllers.NewCategoryController()
-	orderCtrl := controllers.NewOrderController()
+	orderCtrl := controllers.NewOrderController(cfg)
 	adminCtrl := controllers.NewAdminController()
 	uiCtrl := controllers.NewUIController()
 	wishlistCtrl := controllers.NewWishlistController()
 	addressCtrl := controllers.NewAddressController()
+	paymentCtrl := controllers.NewPaymentController(cfg)
 
 	// Root share preview for social media bots (WhatsApp, FB, Twitter)
 	r.GET("/share/product/:id", productCtrl.GetProductSharePreview)
 
 	api := r.Group("/api")
 	{
+		// Payment routes
+		payment := api.Group("/payment")
+		{
+			payment.POST("/create-order", paymentCtrl.CreateOrder)
+			payment.POST("/verify", paymentCtrl.VerifyPayment)
+		}
+		api.POST("/create-order", paymentCtrl.CreateOrder)
+		api.POST("/verify-payment", paymentCtrl.VerifyPayment)
 		// Health check
 		api.GET("/health", func(c *gin.Context) {
 			dbStatus := "disconnected (using memory fallback)"
@@ -65,15 +74,23 @@ func SetupRouter(cfg config.Config) *gin.Engine {
 		api.GET("/ui/custom-sections", uiCtrl.GetCustomSections) // Customer app fetches customizable sections
 
 		// Wishlist routes
-		api.GET("/wishlist", wishlistCtrl.GetWishlist)
-		api.POST("/wishlist/toggle", wishlistCtrl.ToggleWishlist)
-		api.DELETE("/wishlist/:productId", wishlistCtrl.RemoveWishlistItem)
+		wishlist := api.Group("/wishlist")
+		wishlist.Use(middleware.OptionalAuthMiddleware(cfg))
+		{
+			wishlist.GET("", wishlistCtrl.GetWishlist)
+			wishlist.POST("/toggle", wishlistCtrl.ToggleWishlist)
+			wishlist.DELETE("/:productId", wishlistCtrl.RemoveWishlistItem)
+		}
 
 		// User Address routes
-		api.GET("/user/addresses", addressCtrl.GetAddresses)
-		api.POST("/user/addresses", addressCtrl.SaveAddress)
-		api.PUT("/user/addresses/:id/default", addressCtrl.SetDefaultAddress)
-		api.DELETE("/user/addresses/:id", addressCtrl.DeleteAddress)
+		userAddresses := api.Group("/user/addresses")
+		userAddresses.Use(middleware.OptionalAuthMiddleware(cfg))
+		{
+			userAddresses.GET("", addressCtrl.GetAddresses)
+			userAddresses.POST("", addressCtrl.SaveAddress)
+			userAddresses.PUT("/:id/default", addressCtrl.SetDefaultAddress)
+			userAddresses.DELETE("/:id", addressCtrl.DeleteAddress)
+		}
 
 		// Admin & Public Store API Endpoints (Admin panel direct access)
 		admin := api.Group("/admin")
@@ -130,6 +147,9 @@ func SetupRouter(cfg config.Config) *gin.Engine {
 			// Orders Management
 			admin.GET("/orders", adminCtrl.GetAllOrders)
 			admin.PUT("/orders/:id/status", adminCtrl.UpdateOrderStatus)
+			admin.PUT("/orders/:id/cancel", orderCtrl.CancelOrder)
+			admin.DELETE("/orders/:id", adminCtrl.DeleteOrder)
+
 		}
 
 		// Protected customer routes
@@ -138,6 +158,7 @@ func SetupRouter(cfg config.Config) *gin.Engine {
 		{
 			protected.POST("/orders", orderCtrl.CreateOrder)
 			protected.GET("/orders/user", orderCtrl.GetUserOrders)
+			protected.PUT("/orders/:id/cancel", orderCtrl.CancelOrder)
 		}
 	}
 

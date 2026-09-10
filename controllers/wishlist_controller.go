@@ -25,16 +25,23 @@ var (
 )
 
 func getUserIdFromContext(c *gin.Context) string {
-	if uid, exists := c.Get("userId"); exists && uid != "" {
+	if uid, exists := c.Get("userId"); exists && fmt.Sprintf("%v", uid) != "" && fmt.Sprintf("%v", uid) != "<nil>" {
 		return fmt.Sprintf("%v", uid)
 	}
 	if uid := c.Query("userId"); uid != "" {
 		return uid
 	}
+	if uid := c.Query("user_id"); uid != "" {
+		return uid
+	}
 	if uid := c.GetHeader("X-User-ID"); uid != "" {
 		return uid
 	}
-	return "guest_user"
+	ip := c.ClientIP()
+	if ip != "" && ip != "127.0.0.1" && ip != "::1" {
+		return fmt.Sprintf("guest_ip_%s", ip)
+	}
+	return "guest_user_default"
 }
 
 // GET /api/wishlist

@@ -1,0 +1,66 @@
+{
+  "DhZ7QY1Uc6MLyZY1zroSbCjxw8R2": [
+    {
+      "id": "addr_1789022294338",
+      "userId": "DhZ7QY1Uc6MLyZY1zroSbCjxw8R2",
+      "title": "Home",
+      "label": "Home",
+      "fullAddress": "77, hbuhb, Goldenflower hospital, Alappuzha - Thannermukkam Road, Thampakachuvadu, Mannanch",
+      "city": "Mannancherry",
+      "state": "Kerala",
+      "country": "India",
+      "pincode": "688538",
+      "latitude": 9.567220545936667,
+      "longitude": 76.3472027412646,
+      "isDefault": true,
+      "createdAt": "2026-09-10T12:14:34.146213+05:30"
+    },
+    {
+      "id": "addr_1789021389297",
+      "userId": "DhZ7QY1Uc6MLyZY1zroSbCjxw8R2",
+      "title": "Home",
+      "label": "Home",
+      "fullAddress": "21, Mannanchery - Kunnappally Road, Kunnappally, Mannancherry, Ambalappuzha, Alappuzha, Kerala, 688538",
+      "city": "Mannancherry",
+      "state": "Kerala",
+      "country": "India",
+      "pincode": "688538",
+      "latitude": 9.576151779602665,
+      "longitude": 76.34725146365615,
+      "isDefault": false,
+      "createdAt": "2026-09-10T12:12:49.346505+05:30"
+    }
+  ],
+  "csexgLl120dZ6T4o8kbC2nBtYA83": [
+    {
+      "id": "addr_1789022153421",
+      "userId": "csexgLl120dZ6T4o8kbC2nBtYA83",
+      "title": "Home",
+      "label": "Home",
+      "fullAddress": "78, Pathirappally, Ambalappuzha, Alappuzha, Kerala, 688521, India",
+      "city": "Pathirappally",
+      "state": "Kerala",
+      "country": "India",
+      "pincode": "688521",
+      "latitude": 9.549814548861331,
+      "longitude": 76.32437907803451,
+      "isDefault": true,
+      "createdAt": "2026-09-10T12:05:53.424553+05:30"
+    },
+    {
+      "id": "addr_1789021450894",
+      "userId": "csexgLl120dZ6T4o8kbC2nBtYA83",
+      "title": "Home",
+      "label": "Home",
+      "fullAddress": "25, Kavunkal, Mannancherry, Ambalappuzha, Alappuzha, Kerala, 688538, India",
+      "city": "Mannancherry",
+      "state": "Kerala",
+      "country": "India",
+      "pincode": "688538",
+      "latitude": 9.577928048481574,
+      "longitude": 76.35798644745245,
+      "isDefault": false,
+      "createdAt": "2026-09-10T11:54:10.899746+05:30"
+    }
+  ]
+}

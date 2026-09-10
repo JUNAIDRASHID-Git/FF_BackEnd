@@ -83,16 +83,85 @@ func saveUsersToFile() {
 	os.WriteFile(usersFilePath, data, 0644)
 }
 
+func syncOrdersWithDB() {
+	if config.DB == nil {
+		return
+	}
+	config.DB.Exec("DELETE FROM orders WHERE LOWER(user_email) LIKE '%fathima%' OR LOWER(user_email) LIKE '%ihjas%'")
+	for _, o := range mockOrders {
+		if o.ID == "" || strings.Contains(strings.ToLower(o.UserEmail), "fathima") || strings.Contains(strings.ToLower(o.UserEmail), "ihjas") {
+			continue
+		}
+		var count int64
+		config.DB.Model(&models.Order{}).Where("id = ?", o.ID).Count(&count)
+		if count == 0 {
+			config.DB.Create(&o)
+		}
+	}
+	var dbOrders []models.Order
+	if err := config.DB.Preload("Items").Order("created_at desc").Find(&dbOrders).Error; err == nil {
+		mockOrders = dbOrders
+		saveOrdersToFile()
+	}
+}
+
+func syncUsersWithDB() {
+	if config.DB == nil {
+		return
+	}
+	config.DB.Exec("DELETE FROM users WHERE LOWER(email) LIKE '%fathima%' OR LOWER(email) LIKE '%ihjas%'")
+	for _, u := range mockUsers {
+		if u.Email == "" || strings.Contains(strings.ToLower(u.Email), "fathima") || strings.Contains(strings.ToLower(u.Email), "ihjas") {
+			continue
+		}
+		var count int64
+		config.DB.Model(&models.User{}).Where("id = ? OR LOWER(email) = ?", u.ID, strings.ToLower(u.Email)).Count(&count)
+		if count == 0 {
+			config.DB.Create(&u)
+		}
+	}
+	var dbUsers []models.User
+	if err := config.DB.Find(&dbUsers).Error; err == nil {
+		filtered := make([]models.User, 0)
+		for _, u := range dbUsers {
+			if !strings.Contains(strings.ToLower(u.Email), "fathima") && !strings.Contains(strings.ToLower(u.Email), "ihjas") {
+				filtered = append(filtered, u)
+			}
+		}
+		mockUsers = filtered
+		saveUsersToFile()
+	}
+}
+
 func NewAdminController() *AdminController {
 	loadOrdersFromFile()
 	loadUsersFromFile()
+	syncOrdersWithDB()
+	syncUsersWithDB()
 	return &AdminController{}
+}
+
+func FindUserByEmailOrID(identifier string) (models.User, bool) {
+	identifier = strings.TrimSpace(identifier)
+	if identifier == "" {
+		return models.User{}, false
+	}
+	for _, u := range mockUsers {
+		if strings.EqualFold(u.Email, identifier) || u.ID == identifier {
+			return u, true
+		}
+	}
+	return models.User{}, false
 }
 
 func AddOrUpdateMockUser(u models.User) {
 	found := false
 	for i, existing := range mockUsers {
 		if strings.EqualFold(existing.Email, u.Email) || (u.ID != "" && existing.ID == u.ID) {
+			oldID := existing.ID
+			if u.ID != "" {
+				mockUsers[i].ID = u.ID
+			}
 			if u.Name != "" {
 				mockUsers[i].Name = u.Name
 			}
@@ -100,6 +169,10 @@ func AddOrUpdateMockUser(u models.User) {
 				mockUsers[i].AvatarURL = u.AvatarURL
 			}
 			found = true
+
+			if oldID != "" && u.ID != "" && oldID != u.ID {
+				MigrateUserAddresses(oldID, u.ID)
+			}
 			break
 		}
 	}
@@ -404,9 +477,10 @@ func (ac *AdminController) RequestAdminAccess(c *gin.Context) {
 }
 
 func (ac *AdminController) GetAllOrders(c *gin.Context) {
+	syncOrdersWithDB()
 	if config.DB != nil {
 		var orders []models.Order
-		if err := config.DB.Preload("Items").Order("created_at desc").Find(&orders).Error; err == nil {
+		if err := config.DB.Preload("Items").Order("created_at desc").Find(&orders).Error; err == nil && len(orders) > 0 {
 			c.JSON(http.StatusOK, orders)
 			return
 		}
@@ -493,4 +567,44 @@ func (ac *AdminController) UpdateOrderStatus(c *gin.Context) {
 
 	c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
 }
+
+func (ac *AdminController) DeleteOrder(c *gin.Context) {
+	id := c.Param("id")
+
+	if config.DB != nil {
+		config.DB.Where("order_id = ?", id).Delete(&models.OrderItem{})
+		config.DB.Where("id = ?", id).Delete(&models.Order{})
+	}
+
+	found := false
+	newMockOrders := make([]models.Order, 0)
+	for _, o := range mockOrders {
+		if o.ID == id {
+			found = true
+			continue
+		}
+		newMockOrders = append(newMockOrders, o)
+	}
+
+	if found {
+		mockOrders = newMockOrders
+		saveOrdersToFile()
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Order deleted successfully",
+			"id":      id,
+		})
+		return
+	}
+
+	if config.DB != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Order deleted successfully from database",
+			"id":      id,
+		})
+		return
+	}
+
+	c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+}
+
 

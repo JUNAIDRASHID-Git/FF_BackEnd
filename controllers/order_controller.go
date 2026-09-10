@@ -9,40 +9,18 @@ import (
 	"funfillers/backend/config"
 	"funfillers/backend/models"
 	"github.com/gin-gonic/gin"
+	razorpay "github.com/razorpay/razorpay-go"
 )
 
-type OrderController struct{}
-
-func NewOrderController() *OrderController {
-	return &OrderController{}
+type OrderController struct {
+	cfg config.Config
 }
 
-var mockOrders = []models.Order{
-	{
-		ID:              "ord_1001",
-		UserID:          "usr_demo",
-		UserName:        "Demo Customer",
-		UserEmail:       "user@funfillers.com",
-		Items:           []models.OrderItem{{ProductID: "prod_1", ProductName: "FunFillers Premium Wireless Gaming Headset", Price: 129.99, Quantity: 1, ImageURL: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600"}},
-		TotalAmount:     129.99,
-		ShippingAddress: "123 Commerce St, Tech City, CA 94016",
-		Status:          "Processing",
-		PaymentStatus:   "Paid",
-		CreatedAt:       time.Now().Add(-24 * time.Hour),
-	},
-	{
-		ID:              "ord_1002",
-		UserID:          "usr_demo",
-		UserName:        "Demo Customer",
-		UserEmail:       "user@funfillers.com",
-		Items:           []models.OrderItem{{ProductID: "prod_2", ProductName: "Ergonomic RGB Mechanical Keyboard", Price: 89.95, Quantity: 1, ImageURL: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600"}},
-		TotalAmount:     89.95,
-		ShippingAddress: "123 Commerce St, Tech City, CA 94016",
-		Status:          "Delivered",
-		PaymentStatus:   "Paid",
-		CreatedAt:       time.Now().Add(-72 * time.Hour),
-	},
+func NewOrderController(cfg config.Config) *OrderController {
+	return &OrderController{cfg: cfg}
 }
+
+var mockOrders = []models.Order{}
 
 func (oc *OrderController) CreateOrder(c *gin.Context) {
 	var req models.CreateOrderRequest
@@ -54,12 +32,36 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 	userId, _ := c.Get("userId")
 	userEmail, _ := c.Get("userEmail")
 
-	userIdStr := fmt.Sprintf("%v", userId)
-	userEmailStr := fmt.Sprintf("%v", userEmail)
+	userIdStr := ""
+	if userId != nil && fmt.Sprintf("%v", userId) != "<nil>" {
+		userIdStr = fmt.Sprintf("%v", userId)
+	}
+	if userIdStr == "" {
+		userIdStr = c.GetHeader("X-User-ID")
+	}
+	if userIdStr == "" {
+		userIdStr = req.UserID
+	}
+
+	userEmailStr := ""
+	if userEmail != nil && fmt.Sprintf("%v", userEmail) != "<nil>" {
+		userEmailStr = fmt.Sprintf("%v", userEmail)
+	}
+	if userEmailStr == "" {
+		userEmailStr = c.GetHeader("X-User-Email")
+	}
+	if userEmailStr == "" {
+		userEmailStr = req.UserEmail
+	}
+
+	userNameStr := req.UserName
+	if userNameStr == "" {
+		userNameStr = "Valued Customer"
+	}
+
 	orderId := fmt.Sprintf("ord_%d", time.Now().UnixNano()/1e6)
 
 	// Fetch customer real name from database if available
-	userNameStr := "Valued Customer"
 	if config.DB != nil && (userIdStr != "" || userEmailStr != "") {
 		var u models.User
 		if err := config.DB.Where("id = ? OR LOWER(email) = ?", userIdStr, strings.ToLower(userEmailStr)).First(&u).Error; err == nil && u.Name != "" {
@@ -99,6 +101,19 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 		}
 	}
 
+	paymentMethod := req.PaymentMethod
+	if paymentMethod == "" {
+		paymentMethod = "Online Payment"
+	}
+
+	paymentID := req.PaymentID
+	if paymentID == "" && strings.Contains(paymentMethod, "pay_") {
+		parts := strings.Split(paymentMethod, "pay_")
+		if len(parts) > 1 {
+			paymentID = "pay_" + strings.TrimRight(parts[1], ") ")
+		}
+	}
+
 	order := models.Order{
 		ID:              orderId,
 		UserID:          userIdStr,
@@ -108,6 +123,9 @@ func (oc *OrderController) CreateOrder(c *gin.Context) {
 		TotalAmount:     total,
 		ShippingAddress: req.ShippingAddress,
 		Status:          "Pending",
+		PaymentMethod:   paymentMethod,
+		PaymentID:       paymentID,
+		RazorpayOrderID: req.RazorpayOrderID,
 		PaymentStatus:   "Paid",
 		CreatedAt:       time.Now(),
 	}
@@ -131,21 +149,43 @@ func (oc *OrderController) GetUserOrders(c *gin.Context) {
 	userId, _ := c.Get("userId")
 	userEmail, _ := c.Get("userEmail")
 
-	userIdStr := fmt.Sprintf("%v", userId)
-	userEmailStr := fmt.Sprintf("%v", userEmail)
+	userIdStr := ""
+	if userId != nil && fmt.Sprintf("%v", userId) != "<nil>" {
+		userIdStr = fmt.Sprintf("%v", userId)
+	}
+	if userIdStr == "" {
+		userIdStr = c.GetHeader("X-User-ID")
+	}
+	if userIdStr == "" {
+		userIdStr = c.Query("userId")
+	}
+
+	userEmailStr := ""
+	if userEmail != nil && fmt.Sprintf("%v", userEmail) != "<nil>" {
+		userEmailStr = fmt.Sprintf("%v", userEmail)
+	}
+	if userEmailStr == "" {
+		userEmailStr = c.GetHeader("X-User-Email")
+	}
+	if userEmailStr == "" {
+		userEmailStr = c.Query("email")
+	}
+	if userEmailStr == "" {
+		userEmailStr = c.Query("userEmail")
+	}
 
 	if config.DB != nil {
 		var userOrders []models.Order
 		query := config.DB.Preload("Items").Order("created_at desc")
-		if userEmailStr != "" && userEmailStr != "<nil>" && userIdStr != "" && userIdStr != "<nil>" {
+		if userEmailStr != "" && userIdStr != "" {
 			query = query.Where("user_id = ? OR LOWER(user_email) = ?", userIdStr, strings.ToLower(userEmailStr))
-		} else if userIdStr != "" && userIdStr != "<nil>" {
+		} else if userIdStr != "" {
 			query = query.Where("user_id = ?", userIdStr)
-		} else if userEmailStr != "" && userEmailStr != "<nil>" {
+		} else if userEmailStr != "" {
 			query = query.Where("LOWER(user_email) = ?", strings.ToLower(userEmailStr))
 		}
 
-		if err := query.Find(&userOrders).Error; err == nil {
+		if err := query.Find(&userOrders).Error; err == nil && len(userOrders) > 0 {
 			c.JSON(http.StatusOK, userOrders)
 			return
 		}
@@ -153,7 +193,9 @@ func (oc *OrderController) GetUserOrders(c *gin.Context) {
 
 	var userOrders []models.Order
 	for _, o := range mockOrders {
-		if o.UserID == userIdStr || (userEmailStr != "" && strings.EqualFold(o.UserEmail, userEmailStr)) {
+		matchUser := userIdStr != "" && o.UserID == userIdStr
+		matchEmail := userEmailStr != "" && strings.EqualFold(o.UserEmail, userEmailStr)
+		if matchUser || matchEmail {
 			userOrders = append(userOrders, o)
 		}
 	}
@@ -163,4 +205,135 @@ func (oc *OrderController) GetUserOrders(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, userOrders)
+}
+
+func (oc *OrderController) CancelOrder(c *gin.Context) {
+	id := c.Param("id")
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" {
+		reason = "Cancelled by user"
+	}
+
+	var targetOrder *models.Order
+	var dbFound bool
+
+	if config.DB != nil {
+		var dbOrder models.Order
+		if err := config.DB.Preload("Items").First(&dbOrder, "id = ?", id).Error; err == nil {
+			targetOrder = &dbOrder
+			dbFound = true
+		}
+	}
+
+	if targetOrder == nil {
+		for i, o := range mockOrders {
+			if o.ID == id {
+				targetOrder = &mockOrders[i]
+				break
+			}
+		}
+	}
+
+	if targetOrder == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+
+	statusLower := strings.ToLower(targetOrder.Status)
+	if statusLower == "shipped" || statusLower == "delivered" || statusLower == "cancelled" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Order cannot be cancelled because current status is '%s'", targetOrder.Status),
+		})
+		return
+	}
+
+	now := time.Now()
+	refundMessage := "Order cancelled successfully."
+	var refundID string
+
+	// Determine payment ID for Razorpay online payments
+	paymentID := targetOrder.PaymentID
+	if paymentID == "" && strings.Contains(targetOrder.PaymentMethod, "pay_") {
+		parts := strings.Split(targetOrder.PaymentMethod, "pay_")
+		if len(parts) > 1 {
+			paymentID = "pay_" + strings.TrimRight(parts[1], ") ")
+		}
+	}
+
+	isOnlinePayment := paymentID != "" || (strings.Contains(strings.ToLower(targetOrder.PaymentMethod), "razorpay") || strings.Contains(strings.ToLower(targetOrder.PaymentMethod), "online"))
+
+	if isOnlinePayment {
+		if paymentID != "" && oc.cfg.RazorpayKeyID != "" && oc.cfg.RazorpayKeySecret != "" {
+			client := razorpay.NewClient(oc.cfg.RazorpayKeyID, oc.cfg.RazorpayKeySecret)
+			amountInPaise := int(targetOrder.TotalAmount * 100)
+			if amountInPaise < 100 {
+				amountInPaise = 100
+			}
+
+			refundParams := map[string]interface{}{
+				"amount": amountInPaise,
+				"speed":  "optimum",
+				"notes": map[string]interface{}{
+					"reason":   reason,
+					"order_id": targetOrder.ID,
+				},
+			}
+
+			res, err := client.Payment.Refund(paymentID, amountInPaise, refundParams, nil)
+			if err == nil && res != nil {
+				if idVal, ok := res["id"].(string); ok {
+					refundID = idVal
+				}
+				targetOrder.RefundID = refundID
+				targetOrder.RefundAmount = targetOrder.TotalAmount
+				targetOrder.RefundStatus = "Processed"
+				targetOrder.PaymentStatus = "Refunded"
+				refundMessage = fmt.Sprintf("Order cancelled and refund of ₹%.2f initiated via Razorpay (Refund ID: %s)", targetOrder.TotalAmount, refundID)
+			} else {
+				// Mark as refund pending if Razorpay returned mock/test error
+				targetOrder.RefundAmount = targetOrder.TotalAmount
+				targetOrder.RefundStatus = "Pending"
+				targetOrder.PaymentStatus = "Refund Pending"
+				refundMessage = fmt.Sprintf("Order cancelled. Online refund initiated for ₹%.2f (Support will confirm refund processing).", targetOrder.TotalAmount)
+			}
+		} else {
+			targetOrder.RefundAmount = targetOrder.TotalAmount
+			targetOrder.RefundStatus = "Initiated"
+			targetOrder.PaymentStatus = "Refund Initiated"
+			refundMessage = fmt.Sprintf("Order cancelled and full refund of ₹%.2f initiated.", targetOrder.TotalAmount)
+		}
+	} else {
+		targetOrder.PaymentStatus = "Cancelled"
+		refundMessage = "Order cancelled successfully."
+	}
+
+	targetOrder.Status = "Cancelled"
+	targetOrder.CancellationReason = reason
+	targetOrder.CancelledAt = &now
+
+	if dbFound && config.DB != nil {
+		config.DB.Save(targetOrder)
+	}
+
+	for i, o := range mockOrders {
+		if o.ID == id {
+			mockOrders[i] = *targetOrder
+			break
+		}
+	}
+	saveOrdersToFile()
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":            refundMessage,
+		"refundId":           targetOrder.RefundID,
+		"refundAmount":       targetOrder.RefundAmount,
+		"refundStatus":       targetOrder.RefundStatus,
+		"cancellationReason": targetOrder.CancellationReason,
+		"order":              targetOrder,
+	})
 }

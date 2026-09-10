@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"funfillers/backend/config"
@@ -21,26 +22,29 @@ func NewAuthController(cfg config.Config) *AuthController {
 	return &AuthController{cfg: cfg}
 }
 
-var mockUserMap = map[string]models.User{
-	"admin@funfillers.com": {
-		ID:        "usr_admin",
-		Name:      "FUNFILLERS Admin",
-		Email:     "admin@funfillers.com",
-		Password:  "admin123",
-		Role:      "admin",
-		Status:    "Active",
-		CreatedAt: time.Now(),
-	},
-	"user@funfillers.com": {
-		ID:        "usr_demo",
-		Name:      "Demo Customer",
-		Email:     "user@funfillers.com",
-		Password:  "user123",
-		Role:      "customer",
-		Status:    "Active",
-		CreatedAt: time.Now(),
-	},
-}
+var (
+	mockUserMutex sync.RWMutex
+	mockUserMap   = map[string]models.User{
+		"admin@funfillers.com": {
+			ID:        "usr_admin",
+			Name:      "FUNFILLERS Admin",
+			Email:     "admin@funfillers.com",
+			Password:  "admin123",
+			Role:      "admin",
+			Status:    "Active",
+			CreatedAt: time.Now(),
+		},
+		"user@funfillers.com": {
+			ID:        "usr_demo",
+			Name:      "Demo Customer",
+			Email:     "user@funfillers.com",
+			Password:  "user123",
+			Role:      "customer",
+			Status:    "Active",
+			CreatedAt: time.Now(),
+		},
+	}
+)
 
 func (ac *AuthController) Register(c *gin.Context) {
 	var req models.RegisterRequest
@@ -49,7 +53,7 @@ func (ac *AuthController) Register(c *gin.Context) {
 		return
 	}
 
-	if _, exists := mockUserMap[req.Email]; exists {
+	if _, exists := FindUserByEmailOrID(req.Email); exists {
 		c.JSON(http.StatusConflict, gin.H{"error": "User with this email already exists"})
 		return
 	}
@@ -73,7 +77,7 @@ func (ac *AuthController) Register(c *gin.Context) {
 		config.DB.Create(&user)
 	}
 
-	mockUserMap[req.Email] = user
+	AddOrUpdateMockUser(user)
 	token, _ := generateToken(user, ac.cfg.JWTSecret)
 
 	c.JSON(http.StatusCreated, models.AuthResponse{
@@ -89,7 +93,7 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	user, exists := mockUserMap[req.Email]
+	user, exists := FindUserByEmailOrID(req.Email)
 	if !exists || user.Password != req.Password {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
@@ -114,32 +118,36 @@ func (ac *AuthController) GoogleAuth(c *gin.Context) {
 		return
 	}
 
-	user, exists := mockUserMap[req.Email]
-	if !exists {
-		name := req.Name
-		if name == "" {
-			name = strings.Split(req.Email, "@")[0]
-		}
-		user = models.User{
-			ID:        fmt.Sprintf("usr_g_%d", time.Now().UnixNano()),
-			Name:      name,
-			Email:     req.Email,
-			Password:  "google_oauth_user",
-			Role:      "customer",
-			AvatarURL: req.AvatarURL,
-			Status:    "Active",
-			CreatedAt: time.Now(),
-		}
-		if config.DB != nil {
-			config.DB.Create(&user)
-		}
-		mockUserMap[req.Email] = user
-	} else if req.AvatarURL != "" {
-		user.AvatarURL = req.AvatarURL
-		mockUserMap[req.Email] = user
+	name := req.Name
+	if name == "" {
+		name = strings.Split(req.Email, "@")[0]
+	}
+	uId := req.GoogleID
+	if uId == "" {
+		cleanEmail := strings.ReplaceAll(strings.ReplaceAll(req.Email, "@", "_at_"), ".", "_")
+		uId = fmt.Sprintf("usr_g_%s", cleanEmail)
+	}
+
+	user := models.User{
+		ID:        uId,
+		Name:      name,
+		Email:     req.Email,
+		Password:  "google_oauth_user",
+		Role:      "customer",
+		AvatarURL: req.AvatarURL,
+		Status:    "Active",
+		CreatedAt: time.Now(),
+	}
+
+	if config.DB != nil {
+		config.DB.Create(&user)
 	}
 
 	AddOrUpdateMockUser(user)
+
+	if updated, ok := FindUserByEmailOrID(req.Email); ok {
+		user = updated
+	}
 
 	token, err := generateToken(user, ac.cfg.JWTSecret)
 	if err != nil {

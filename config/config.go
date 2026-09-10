@@ -8,9 +8,11 @@ import (
 )
 
 type Config struct {
-	Port      string
-	JWTSecret string
-	Env       string
+	Port              string
+	JWTSecret         string
+	Env               string
+	RazorpayKeyID     string
+	RazorpayKeySecret string
 }
 
 func LoadConfig() Config {
@@ -35,9 +37,21 @@ func LoadConfig() Config {
 		env = "development"
 	}
 
+	razorpayKeyID := os.Getenv("RAZORPAY_KEY_ID")
+	if razorpayKeyID == "" {
+		razorpayKeyID = "rzp_test_TaFCXrgrWjxR41"
+	}
+
+	razorpayKeySecret := os.Getenv("RAZORPAY_KEY_SECRET")
+	if razorpayKeySecret == "" {
+		razorpayKeySecret = "gqjcm0rxZ3AbrbQwarH2wZql"
+	}
+
 	return Config{
-		Port:      port,
-		JWTSecret: jwtSecret,
-		Env:       env,
+		Port:              port,
+		JWTSecret:         jwtSecret,
+		Env:               env,
+		RazorpayKeyID:     razorpayKeyID,
+		RazorpayKeySecret: razorpayKeySecret,
 	}
 }

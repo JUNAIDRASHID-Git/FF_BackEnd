@@ -1,27 +1,29 @@
 [
   {
-    "id": "usr_1788680723357",
-    "name": "Junaid Rashid",
-    "email": "junaidrashid1163@gmail.com",
-    "role": "admin",
-    "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocLGg6foCc0fk1CP44iPnHoGwW8uIhh1chj2VIyVBCMbFMlaew=s96-c",
-    "status": "Suspended",
-    "createdAt": "2026-09-06T13:15:23.357734+05:30"
-  },
-  {
     "id": "usr_super1",
-    "name": "Junaid Rashid",
+    "name": "JUNAID RASHID",
     "email": "junaidrashid678@gmail.com",
     "role": "super_admin",
+    "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocKds53FDQr1P-He11I9I7nioABYOK_ywT6v5OCRMYedoc5pvn0r=s96-c",
     "status": "Active",
-    "createdAt": "2026-09-06T12:00:00Z"
+    "createdAt": "0001-01-01T00:00:00Z"
   },
   {
-    "id": "usr_g_1788926521201660000",
-    "name": "Fathima.A",
-    "email": "fathimaansal81@gmail.com",
+    "id": "DhZ7QY1Uc6MLyZY1zroSbCjxw8R2",
+    "name": "Junaid Rashid",
+    "email": "junaidrashid1163@gmail.com",
     "role": "customer",
+    "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocLGg6foCc0fk1CP44iPnHoGwW8uIhh1chj2VIyVBCMbFMlaew=s96-c",
     "status": "Active",
-    "createdAt": "2026-09-09T09:32:01.201663+05:30"
+    "createdAt": "2026-09-10T06:34:22.318913+05:30"
+  },
+  {
+    "id": "csexgLl120dZ6T4o8kbC2nBtYA83",
+    "name": "Kidkat Entertainment",
+    "email": "ekidkat@gmail.com",
+    "role": "customer",
+    "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocLNy3eOTnTuUjHwIJlfhpvgyBybZjdzN1KA6n13CdznAB_VhQ=s96-c",
+    "status": "Active",
+    "createdAt": "2026-09-10T11:43:22.502678+05:30"
   }
 ]

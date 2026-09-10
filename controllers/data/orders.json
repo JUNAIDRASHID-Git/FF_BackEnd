@@ -1,0 +1,46 @@
+[
+  {
+    "id": "ord_1001",
+    "userId": "usr_demo",
+    "userName": "Demo Customer",
+    "userEmail": "user@funfillers.com",
+    "totalAmount": 129.99,
+    "status": "Processing",
+    "paymentStatus": "Paid",
+    "shippingAddress": "123 Commerce St, Tech City, CA 94016",
+    "items": [
+      {
+        "id": "",
+        "orderId": "",
+        "productId": "prod_1",
+        "productName": "FunFillers Premium Wireless Gaming Headset",
+        "price": 129.99,
+        "quantity": 1,
+        "imageUrl": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600"
+      }
+    ],
+    "createdAt": "2026-09-08T22:30:30.89789+05:30"
+  },
+  {
+    "id": "ord_1002",
+    "userId": "usr_demo",
+    "userName": "Demo Customer",
+    "userEmail": "user@funfillers.com",
+    "totalAmount": 89.95,
+    "status": "Delivered",
+    "paymentStatus": "Paid",
+    "shippingAddress": "123 Commerce St, Tech City, CA 94016",
+    "items": [
+      {
+        "id": "",
+        "orderId": "",
+        "productId": "prod_2",
+        "productName": "Ergonomic RGB Mechanical Keyboard",
+        "price": 89.95,
+        "quantity": 1,
+        "imageUrl": "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600"
+      }
+    ],
+    "createdAt": "2026-09-06T22:30:30.89789+05:30"
+  }
+]
